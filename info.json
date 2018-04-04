@@ -1,11 +1,11 @@
 {
     "name": "autopilot-mod",
     "version": "0.1.0",
-    "title": "Autopilot",
-    "author": "AJB",
+    "title": "Autopilot Factorio Mod",
+    "author": "ajboloor",
     "contact": "",
-    "homepage": "",
+    "homepage": "https://github.com/ajboloor/autopilot-mod",
     "factorio_version": "0.16",
     "dependencies": ["base >= 0.16"],
-    "description": "This mod adds an armor that takes control of your character. Use with caution."
+    "description": "The mod adds an armor that takes control of your character. Use with caution."
 }
