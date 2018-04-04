@@ -1,71 +1,12 @@
 --control.lua
+
+require("libs.util")
+require("config.config")
 -- /c game.player.surface.create_entity({name="copper-ore", position={game.player.position.x-4, game.player.position.y+3}})
 --to do
 -- cost function
 -- cutting trees
 -- /c game.player.surface.create_entity({name="stone-wall", position={game.player.position.x+4, game.player.position.y+3}})
--- Enabling stacks and queues in Lua
-Stack = {}
-function Stack.new ()
-  return {first = 0, last = -1}
-end
-Queue = {}
-function Queue.new ()
-  return {first = 0, last = -1}
-end
-
-function Stack.push (list, value)
-  local first = list.first - 1
-  list.first = first
-  list[first] = value
-end
-
-function Queue.push (list, value)
-  local last = list.last + 1
-  list.last = last
-  list[last] = value
-end
-
-function Queue.pop (list)
-  local first = list.first
-  if first > list.last then error("list is empty") end
-  local value = list[first]
-  list[first] = nil        -- to allow garbage collection
-  list.first = first + 1
-  return value
-end
-
-function Stack.pop (list)
-  local last = list.last
-  if list.first > last then error("list is empty") end
-  local value = list[last]
-  list[last] = nil         -- to allow garbage collection
-  list.last = last - 1
-  return value
-end
-
--- constansts (move to separate file)
-local SEARCH_OFFSET = 1
-local GLOBAL_SURFACE_MAP = {{-32,-32},{32,32}}
-local init_armor = 1
-local init_scan = 1
-map_width = 256
-map_height = 256
-local moveDiagonal = 1
-local moveHorizontal = 0
-local moveVertical = 0
-local success_flag = 0
-local TILE_RADIUS = 0.2
-
-local function round(value)
-	return math.floor(value + 0.5)
-end
-
-local function tablelength(table)
-  local count = 0
-  for index in pairs(table) do count = count + 1 end
-  return count
-end
 
 local function moveTo(player, xDist, yDist, distEuc)
   -- moveTo
@@ -88,6 +29,7 @@ local function moveTo(player, xDist, yDist, distEuc)
   end
 end
 
+
 local function find_nearest_entity(xPosPlayer, yPosPlayer, game, player, entity)
   local i = 1
   local entityCount = 0
@@ -100,17 +42,18 @@ local function find_nearest_entity(xPosPlayer, yPosPlayer, game, player, entity)
   return entityCount, entityFind, allEntities, i
 end
 
+
 local function create_collision_map(x, y, game, player, radius)
   local collision_count = 0
-  map_width = game.surfaces[1].map_gen_settings.width
-  map_height = game.surfaces[1].map_gen_settings.height
-  if map_width > 256 then
-    map_width = 256
+  MAP_WIDTH = game.surfaces[1].map_gen_settings.width
+  MAP_HEIGHT = game.surfaces[1].map_gen_settings.height
+  if MAP_WIDTH > 256 then
+    MAP_WIDTH = 256
   end
-  if map_height > 256 then
-    map_height = 256
+  if MAP_HEIGHT > 256 then
+    MAP_HEIGHT = 256
   end
-  GLOBAL_SURFACE_MAP = {{-map_width / 2 + 1, -map_height / 2 + 1}, {map_width / 2 - 1, map_height / 2 - 1}}
+  GLOBAL_SURFACE_MAP = {{-MAP_WIDTH / 2 + 1, -MAP_HEIGHT / 2 + 1}, {MAP_WIDTH / 2 - 1, MAP_HEIGHT / 2 - 1}}
   local surface_map = {{-x - radius, -y - radius}, {x + radius, y + radius}}
 
   -- this is ridiculously inefficient, change the area to somehting dynamic
@@ -118,9 +61,9 @@ local function create_collision_map(x, y, game, player, radius)
   local mapEntities = game.surfaces[1].find_entities_filtered{area=surface_map}
 
   local collision_map = {}
-  for i=1,map_width do
+  for i=1,MAP_WIDTH do
     collision_map[i]={}
-    for j=1,map_height do
+    for j=1,MAP_HEIGHT do
       collision_map[i][j]=0
     end
   end
@@ -129,7 +72,7 @@ local function create_collision_map(x, y, game, player, radius)
     if tile_value.prototype.collision_mask["player-layer"] == true then
        -- log(serpent.line(value.name))
        -- log(serpent.line(value.position))
-       collision_map[tile_value.position.x + map_width / 2][tile_value.position.y + map_height / 2] = 1
+       collision_map[tile_value.position.x + MAP_WIDTH / 2][tile_value.position.y + MAP_HEIGHT / 2] = 1
        collision_count = collision_count + 1
     end
   end
@@ -141,9 +84,9 @@ local function create_collision_map(x, y, game, player, radius)
       local collision_entity_tile = game.surfaces[1].get_tile(entitity_value.position.x,entitity_value.position.y)
       x_entity_col = collision_entity_tile.position.x
       y_entity_col = collision_entity_tile.position.y
-      if math.abs(x_entity_col) < map_width / 2 and math.abs(y_entity_col) < map_width then
-        if collision_map[collision_entity_tile.position.x + map_width / 2][collision_entity_tile.position.y + map_height / 2] == 0 then
-          collision_map[collision_entity_tile.position.x + map_width / 2][collision_entity_tile.position.y + map_height / 2] = 1
+      if math.abs(x_entity_col) < MAP_WIDTH / 2 and math.abs(y_entity_col) < MAP_WIDTH then
+        if collision_map[collision_entity_tile.position.x + MAP_WIDTH / 2][collision_entity_tile.position.y + MAP_HEIGHT / 2] == 0 then
+          collision_map[collision_entity_tile.position.x + MAP_WIDTH / 2][collision_entity_tile.position.y + MAP_HEIGHT / 2] = 1
           collision_count = collision_count + 1
         end
       end
@@ -151,6 +94,7 @@ local function create_collision_map(x, y, game, player, radius)
   end
     return collision_map, collision_count
 end
+
 
 local function is_goal_state(testState, goalState)
 	-- log(serpent.line("testState in is_goal_state:"))
@@ -161,6 +105,7 @@ local function is_goal_state(testState, goalState)
     return false
   end
 end
+
 
 local function is_in_closed_states(testState, closedStates)
   if closedStates == {} then
@@ -174,6 +119,7 @@ local function is_in_closed_states(testState, closedStates)
   end
 end
 
+
 local function get_neighbors(current_state, collision_map, goalState)
 	local neighbors = {}
 	local neighbors_index = 1
@@ -182,7 +128,7 @@ local function get_neighbors(current_state, collision_map, goalState)
   while i < 2 do
 		local j = -1
     while j < 2 do
-			if math.abs(current_state[1]+i) <= map_width and math.abs(current_state[1]+j) <= map_height then
+			if math.abs(current_state[1]+i) <= MAP_WIDTH and math.abs(current_state[1]+j) <= MAP_HEIGHT then
 	      collision_point = collision_map[current_state[1]+i][current_state[2]+j]
 				-- log(serpent.line("collision_point:"))
 				-- log(serpent.line(collision_point))
@@ -201,6 +147,7 @@ local function get_neighbors(current_state, collision_map, goalState)
   return neighbors
 end
 
+
 local function visited(visited, neighbor)
   local visited_flag = false -- suboptimal because loop has to iterate every single element/ add break?
 	for _, v in ipairs(visited) do
@@ -218,6 +165,7 @@ local function visited(visited, neighbor)
 	end
   return visited_flag
 end
+
 
 init = 1
 local function path_finder(xPlayer, yPlayer, collision_map, collision_count, xGoal, yGoal)
@@ -284,6 +232,7 @@ local function path_finder(xPlayer, yPlayer, collision_map, collision_count, xGo
   end
   log(serpent.line(fringe_list))
 end
+
 
 script.on_event({defines.events.on_tick},
    function (e)
@@ -362,7 +311,7 @@ script.on_event({defines.events.on_tick},
 
                   end
                   if init_scan == 0 then
-                    moveToWithCollision = path_finder(xPosPlayer+ map_width/2, yPosPlayer+map_height/2, collision_map, collision_count, xPosGoal+map_width/2, yPosGoal+map_height/2)
+                    moveToWithCollision = path_finder(xPosPlayer+ MAP_WIDTH/2, yPosPlayer+MAP_HEIGHT/2, collision_map, collision_count, xPosGoal+MAP_WIDTH/2, yPosGoal+MAP_HEIGHT/2)
                     init_scan = 2
 										break
                   end
