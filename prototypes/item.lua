@@ -6,7 +6,7 @@ autopilotArmor.name = "autopilot-armor"
 autopilotArmor.icons= {
    {
       icon=autopilotArmor.icon,
-      tint={r=1,g=0,b=0,a=0.3}
+      tint={r=184,g=176,b=155,a=1}
    },
 }
 

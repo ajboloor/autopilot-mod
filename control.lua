@@ -1,5 +1,50 @@
 --control.lua
+-- /c game.player.surface.create_entity({name="copper-ore", position={game.player.position.x-4, game.player.position.y+3}})
+--to do
+-- cost function
+-- cutting trees
+-- /c game.player.surface.create_entity({name="stone-wall", position={game.player.position.x+4, game.player.position.y+3}})
+-- Enabling stacks and queues in Lua
+Stack = {}
+function Stack.new ()
+  return {first = 0, last = -1}
+end
+Queue = {}
+function Queue.new ()
+  return {first = 0, last = -1}
+end
 
+function Stack.push (list, value)
+  local first = list.first - 1
+  list.first = first
+  list[first] = value
+end
+
+function Queue.push (list, value)
+  local last = list.last + 1
+  list.last = last
+  list[last] = value
+end
+
+function Queue.pop (list)
+  local first = list.first
+  if first > list.last then error("list is empty") end
+  local value = list[first]
+  list[first] = nil        -- to allow garbage collection
+  list.first = first + 1
+  return value
+end
+
+function Stack.pop (list)
+  local last = list.last
+  if list.first > last then error("list is empty") end
+  local value = list[last]
+  list[last] = nil         -- to allow garbage collection
+  list.last = last - 1
+  return value
+end
+
+-- constansts (move to separate file)
 local SEARCH_OFFSET = 1
 local GLOBAL_SURFACE_MAP = {{-32,-32},{32,32}}
 local init_armor = 1
@@ -24,7 +69,6 @@ end
 
 local function moveTo(player, xDist, yDist, distEuc)
   -- moveTo
-  --
   if xDist >= TILE_RADIUS and yDist >= TILE_RADIUS then
     player.walking_state = {walking = true, direction = defines.direction.southeast}
   elseif xDist <= -TILE_RADIUS and yDist >= TILE_RADIUS then
@@ -108,21 +152,161 @@ local function create_collision_map(x, y, game, player, radius)
     return collision_map, collision_count
 end
 
+local function is_goal_state(testState, goalState)
+	-- log(serpent.line("testState in is_goal_state:"))
+	-- log(serpent.line(testState))
+  if testState[1] == goalState[1] and testState[2] == goalState[2] then
+    return true
+  else
+    return false
+  end
+end
+
+local function is_in_closed_states(testState, closedStates)
+  if closedStates == {} then
+    return false
+  else
+    for _,v in ipairs(closedStates) do
+      if v[1] ~= testState[1] or v[2] ~= testState[2] then
+        return false
+      end
+    end
+  end
+end
+
+local function get_neighbors(current_state, collision_map, goalState)
+	local neighbors = {}
+	local neighbors_index = 1
+  local i = -1
+
+  while i < 2 do
+		local j = -1
+    while j < 2 do
+			if math.abs(current_state[1]+i) <= map_width and math.abs(current_state[1]+j) <= map_height then
+	      collision_point = collision_map[current_state[1]+i][current_state[2]+j]
+				-- log(serpent.line("collision_point:"))
+				-- log(serpent.line(collision_point))
+				-- log(serpent.line({current_state[1]+i, current_state[2]+j}))
+	      if collision_point == 0 then
+	        neighbors[neighbors_index]={current_state[1]+i, current_state[2]+j}
+					neighbors_index = neighbors_index + 1
+	      end
+			end
+			j = j+1
+    end
+    i = i + 1
+  end
+	-- log(serpent.line("neighbors:"))
+  -- log(serpent.line(neighbors))
+  return neighbors
+end
+
+local function visited(visited, neighbor)
+  local visited_flag = false -- suboptimal because loop has to iterate every single element/ add break?
+	for _, v in ipairs(visited) do
+  		-- log(serpent.line("visited:"))
+  		-- log(serpent.line(v))
+  		-- log(serpent.line("neighbor:"))
+  		-- log(serpent.line(neighbor))
+  		-- log(serpent.line(v[1] ~= neighbor[1] and v[2] ~= neighbor[2]))
+  		if v[1] == neighbor[1] and v[2] == neighbor[2] then
+  			visited_flag = true
+        break
+  		else
+        visited_flag = false
+      end
+	end
+  return visited_flag
+end
+
+init = 1
+local function path_finder(xPlayer, yPlayer, collision_map, collision_count, xGoal, yGoal)
+  -- lump xy coordinates together
+  start_state = {xPlayer, yPlayer}
+  goal_state = {xGoal, yGoal}
+	potato_state = {{xGoal, yGoal},{}}
+  local path = Queue.new()
+	log(serpent.line("start_state:"))
+  log(serpent.line(start_state))
+	log(serpent.line("Goal State:"))
+  log(serpent.line(goal_state))
+
+  local fringe_list = Queue.new()
+  local closed_states = {}
+	local ctr = 1
+  Queue.push(fringe_list, {start_state,{}})
+	log(serpent.line("fringe:"))
+	log(serpent.line(fringe_list))
+	local visit_ctr = 1
+	local visited_list = {}
+	table.insert(visited_list, start_state)
+
+  while fringe_list~={} do
+    current_state = Queue.pop(fringe_list)
+		-- log(serpent.line("fringe:"))
+	  -- log(serpent.line(fringe_list))
+
+		-- log(serpent.line("current_state:"))
+		-- -- log(serpent.line(current_state))
+		-- log(serpent.line(current_state[1]))
+		-- log(serpent.line("Goal State:"))
+		-- log(serpent.line(goal_state))
+		-- remember Roman said NOT to check if current state until you pop it from queue
+    if is_goal_state(current_state[1], goal_state) == true then
+      log(serpent.line("current_state:"))
+      log(serpent.line(current_state[1]))
+      log(serpent.line("gooooaallllll"))
+      break
+    end
+
+		-- log(serpent.line(closed_states=={}))
+		-- log(serpent.line(closed_states))
+		if is_in_closed_states(current_state[1], closed_states) == false or closed_states[1] == nil then
+			closed_states[ctr] = current_state[1]
+			ctr = ctr + 1
+      -- local neighbors = get_neighbors(current_state[1],collision_map)
+			for _, neighbor in ipairs(get_neighbors(current_state[1], collision_map, goal_state, fringe_list)) do
+				if visited(visited_list, neighbor) == false then
+					table.insert(visited_list, neighbor)
+					-- log(serpent.line("visited_list:"))
+					-- log(serpent.line(visited_list))
+					Queue.push(fringe_list, {neighbor})
+          -- log(serpent.line("inserted:"))
+    			-- log(serpent.line(neighbor))
+				end
+			end
+			-- log(serpent.line("fringe_list:"))
+			-- log(serpent.line(fringe_list))
+			-- log(serpent.line("visited_list:"))
+			-- log(serpent.line(visited_list))
+    end
+		-- log(serpent.line("reached end of while"))
+  end
+  log(serpent.line(fringe_list))
+end
 
 script.on_event({defines.events.on_tick},
    function (e)
       if e.tick % 1 == 0 then --common trick to reduce how often this runs, we don't want it running every tick, just 1/second
          for index,player in pairs(game.connected_players) do  --loop through all online players on the server
             if init_armor == 1 then
+
+              --player.insert{name="light-armor", count=1}
               player.begin_crafting{count=1, recipe="autopilot-armor"}
+              player.begin_crafting{count=1, recipe="iron-axe"}
+              --player.insert{name="autopilot-armor", count=1}
               init_armor = 0
             end
             if player.character and player.get_inventory(defines.inventory.player_armor).get_item_count("autopilot-armor") > 0 then
+               --create the fire where they're standing
+               --player.surface.create_entity{name="fire-flame", position=player.position, force="neutral"}
+               --player.print(serpent.line(player))
                player.color= {r=184,g=176,b=155,a=1.0}
                player.character_running_speed_modifier = 2
                xPosPlayer = player.position.x
                yPosPlayer = player.position.y
-               entity = "iron-ore"
+               --player.print("xPosPlayer: ".. xPosPlayer .." yPosPlayer: ".. yPosPlayer)
+               entity = "copper-ore"
                if init_scan == 1 then
                  ironCount=game.surfaces[1].count_entities_filtered{area={{xPosPlayer-SEARCH_OFFSET, yPosPlayer-SEARCH_OFFSET},
                  {xPosPlayer+SEARCH_OFFSET, yPosPlayer+SEARCH_OFFSET}},name=entity}
@@ -130,25 +314,70 @@ script.on_event({defines.events.on_tick},
                  -- ironFind=game.surfaces[1].find_entities_filtered{area=GLOBAL_SURFACE_MAP}
                  init_scan = 0
                end
+               --ironFind=game.surfaces[1].find_entities_filtered{area={{xPosPlayer-SEARCH_OFFSET, yPosPlayer-SEARCH_OFFSET}, {xPosPlayer+SEARCH_OFFSET, yPosPlayer+SEARCH_OFFSET}},name="iron-ore", limit=50}
+               --ironCount=game.surfaces[1].count_entities_filtered{area=GLOBAL_SURFACE_MAP,name="iron-ore"}
+
+               --itemFind=game.surfaces[1].find_entities({{-10, -10}, {10, 10}})
+               --itemCount=game.surfaces[1].count_entities_filtered{area={{-100, -100}, {100, 100}}}
+
+               --itemCount=tablelength(itemFind)
+               --player.print("Nearby Items count: ".. itemCount)
                if ironCount == 0 then
                  ironCount, ironFind, allEntities, expansionRadius = find_nearest_entity(player.position.x, player.position.y, game, player,entity)
+
                  collision_map, collision_count = create_collision_map(player.position.x, player.position.y, game, player, expansionRadius)
-                 --log(serpent.line(collision_count))
-               elseif ironCount > 0 then
+                 log(serpent.line(collision_count))
+                 --log(serpent.line(collision_map))
+                 --player.print(serpent.line(tablelength(allEntities)))
+                 --log( serpent.block( allEntities[1].name, {comment = false, numformat = '%1.8g' } ) )
+                 -- for index, value  in ipairs(allEntities) do
+                   -- log(serpent.line(value.name))
+                   -- --log(serpent.line(value.position))
+                   -- entityTile = game.surfaces[1].get_tile(value.position.x,value.position.y)
+                   -- log(serpent.line(entityTile.position))
+                 -- end
+							 end
+							 if ironCount > 0 then
+                  --player.print(serpent.line(find_iron))
                   for index, value  in ipairs(ironFind) do
                       PosIron = value.position
                       xPosIron = value.position.x
                       yPosIron = value.position.y
+                      xPosIron_rounded = round(xPosIron)
+                      yPosIron_rounded = round(yPosIron)
                       distEuc = math.sqrt(math.pow(xPosPlayer-xPosIron,2)+math.pow(yPosPlayer-yPosIron,2))
                       xDist = value.position.x-player.position.x
                       yDist = value.position.y-player.position.y
+                      xDist_rounded = round(xDist)
+                      yDist_rounded = round(yDist)
+
+
                       entityTile = game.surfaces[1].get_tile(xPosIron,yPosIron)
+                      xPosGoal = entityTile.position.x
+                      yPosGoal = entityTile.position.y
+                      xDist = entityTile.position.x-player.position.x
+                      yDist = entityTile.position.y-player.position.y
+                      --player.print(index .. " xPosIron: ".. xPosIron .." yPosIron: ".. yPosIron)
+                      --player.print(index .. " xDist: ".. xDist .." yDist: ".. yDist)
+
+                  end
+                  if init_scan == 0 then
+                    moveToWithCollision = path_finder(xPosPlayer+ map_width/2, yPosPlayer+map_height/2, collision_map, collision_count, xPosGoal+map_width/2, yPosGoal+map_height/2)
+                    init_scan = 2
+										break
                   end
                   if distEuc > TILE_RADIUS then
-                    moveTo(player, xDist, yDist, distEuc)
+                    --moveTo(player, xDist, yDist, distEuc)
                   end
+                  --player.character.set_command({type=defines.command.go_to_location,destination={xPosIron,yPosIron}})
                 end
                 if xDist_rounded == 0 and yDist_rounded == 0 then
+                  --player.update_selected_entity({xPosIron,yPosIron})
+                  --entityTile = game.surfaces[1].get_tile(xPosPlayer,yPosPlayer)
+                  --entityTile = game.surfaces[1].get_tile(xPosIron,yPosIron)
+                  --player.update_selected_entity({entityTile.position.x,entityTile.position.y})
+                  --player.mining_state = {mining = true,position={entityTile.position.x,entityTile.position.y}}
+                  --player.print(entityTile.position.x .. entityTile.position.y)
                   if success_flag == 0 then
                     success_flag = 1
                     player.print("xPosPlayer: ".. xPosPlayer .."m yPosPlayer: ".. yPosPlayer)
