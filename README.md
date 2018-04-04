@@ -12,4 +12,4 @@ Mod portal link: [Mod Portal](https://mods.factorio.com/mod/autopilot-mod)
 
 ### Credits
 - The Factorio team for providing well documented [API](http://lua-api.factorio.com/latest/) 
-- The wonderful modding cmunnity of Factorio
+- The wonderful modding community of Factorio
