@@ -10,4 +10,4 @@ moveDiagonal = 1
 moveHorizontal = 0
 moveVertical = 0
 success_flag = 0
-TILE_RADIUS = 0.2
+TILE_RADIUS = 0.5
